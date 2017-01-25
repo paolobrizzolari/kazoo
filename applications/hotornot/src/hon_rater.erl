@@ -76,22 +76,31 @@ get_rate_data(JObj, ToDID, FromDID, Rates) ->
     lager:debug("candidate rates found, filtering"),
     Matching = hon_util:matching_rates(Rates, JObj),
 
-    case hon_util:sort_rates(Matching) of
-        [] ->
-            kz_notify:system_alert("no rate found after filter/sort for ~s to ~s", [FromDID, ToDID]),
-            lager:debug("no rates left for ~s to ~s after filter"
-                       ,[FromDID, ToDID]
-                       ),
-            {'error', 'no_rate_found'};
-        [Rate|_] ->
-            lager:debug("using rate ~s for ~s to ~s"
-                       ,[kz_json:get_value(<<"rate_name">>, Rate)
-                        ,FromDID
-                        ,ToDID
-                        ]
-                       ),
-            {'ok', rate_resp(Rate, JObj)}
-    end.
+    get_rate_data_from_matching(JObj, ToDID, FromDID, Matching).
+
+get_rate_data_from_matching(_JObj, ToDID, FromDID, []) ->
+    kz_notify:system_alert("no matching rate found for ~s to ~s", [FromDID, ToDID]),
+    lager:debug("no matching rates for ~s to ~s"
+               ,[FromDID, ToDID]
+               ),
+    {'error', 'no_rate_found'};
+get_rate_data_from_matching(JObj, ToDID, FromDID, Matching) ->
+    get_rate_data_from_sorted(JObj, ToDID, FromDID, hon_util:sort_rates(Matching)).
+
+get_rate_data_from_sorted(_JObj, ToDID, FromDID, []) ->
+    kz_notify:system_alert("no rate found after filter/sort for ~s to ~s", [FromDID, ToDID]),
+    lager:debug("no rates left for ~s to ~s after filter"
+               ,[FromDID, ToDID]
+               ),
+    {'error', 'no_rate_found'};
+get_rate_data_from_sorted(JObj, ToDID, FromDID, [Rate|_]) ->
+    lager:debug("using rate ~s for ~s to ~s"
+               ,[kz_json:get_value(<<"rate_name">>, Rate)
+                ,FromDID
+                ,ToDID
+                ]
+               ),
+    {'ok', rate_resp(Rate, JObj)}.
 
 -spec maybe_get_rate_discount(kz_json:object()) -> api_binary().
 -spec maybe_get_rate_discount(kz_json:object(), api_binary()) -> api_binary().
