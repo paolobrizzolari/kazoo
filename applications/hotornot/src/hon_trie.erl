@@ -67,7 +67,7 @@ rebuild() ->
             lager:debug("rebuilding trie in ~p", [Pid]),
             {'ok', Pid};
         {'error', E} ->
-            lager:warning("error rebilding trie ~p", [E]),
+            lager:warning("error rebuilding trie ~p", [E]),
             {'error', E}
     end.
 
