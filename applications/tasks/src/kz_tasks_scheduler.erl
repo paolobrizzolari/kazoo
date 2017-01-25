@@ -415,8 +415,8 @@ log_elapsed_time(#{started := Start
 -spec handle_call_start_task(kz_tasks:task(), state()) -> ?REPLY(state(), Response) when
       Response :: {'ok', kz_json:object()} |
                   {'error', any()}.
-handle_call_start_task(#{id:=_Id
-                        ,finished := Finished
+handle_call_start_task(#{finished := Finished
+                        ,id := _Id
                         }, State)
   when Finished /= 'undefined' ->
     lager:debug("task ~s in a finished state: ~p", [_Id, Finished]),
