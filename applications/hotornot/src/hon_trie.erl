@@ -38,7 +38,7 @@
 
 -define(BUILD_TIMEOUT, kapps_config:get_integer(?APP_NAME, <<"trie_build_timeout_ms">>, ?MILLISECONDS_IN_MINUTE)).
 
--type state() :: {trie:trie() | 'undefined', api_pid()}.
+-type state() :: trie:trie() | {trie:trie() | 'undefined', pid_ref()}.
 
 -spec start_link() -> {'ok', pid()}.
 start_link() ->
@@ -84,49 +84,67 @@ load_rate(RateId, Acc) ->
 
 -spec init([]) -> {'ok', state()}.
 init([]) ->
-    {Pid, _Ref} = spawn_monitor(?MODULE, 'build_trie', [self()]),
-    _ = erlang:send_after(?BUILD_TIMEOUT, self(), {'build_timeout', Pid}),
-    lager:debug("building trie in ~p", [Pid]),
-    {'ok', {'undefined', Pid}}.
+    PidRef = start_builder(),
+    lager:debug("building trie in ~p", [PidRef]),
+    {'ok', {'undefined', PidRef}}.
+
+-spec start_builder() -> pid_ref().
+start_builder() ->
+    PidRef = spawn_monitor(?MODULE, 'build_trie', [self()]),
+    _ = erlang:send_after(?BUILD_TIMEOUT, self(), {'build_timeout', PidRef}),
+    PidRef.
 
 -spec handle_call(any(), pid_ref(), state()) ->
                          {'noreply', state()} |
                          {'reply', match_return(), state()}.
-handle_call({'match_did', _DID}, _From, {'undefined', _Pid}=State) ->
+handle_call({'match_did', _DID}, _From, {'undefined', _PidRef}=State) ->
     {'reply', {'error', 'no_trie'}, State};
-handle_call({'match_did', DID}, _From, {Trie, _Pid}=State) ->
-    case trie:find_prefix_longest(DID, Trie) of
-        'error' -> {'reply', {'error', 'not_found'}, State};
-        {'ok', Prefix, RateIds} -> {'reply', {'ok', {Prefix, RateIds}}, State}
-    end;
-handle_call('rebuild', _From, {Trie, 'undefined'}) ->
-    {Pid, _Ref} = spawn_monitor(?MODULE, 'build_trie', [self()]),
-    _ = erlang:send_after(?BUILD_TIMEOUT, self(), {'build_timeout', Pid}),
-    {'reply', {'ok', Pid}, {Trie, Pid}};
-handle_call('rebuild', _From, {_Trie, Pid}=State) ->
-    {'reply', {'error', {'already_rebuild', Pid}}, State};
+handle_call({'match_did', DID}, _From, {Trie, {_Pid, _Ref}}=State) ->
+    Resp = match_did(DID, Trie),
+    {'reply', Resp, State};
+handle_call({'match_did', DID}, _From, Trie) ->
+    Resp = match_did(DID, Trie),
+    {'reply', Resp, Trie};
+handle_call('rebuild', _From, {_Trie, {Pid, _Ref}}=State) ->
+    {'reply', {'error', {'rebuilding', Pid}}, State};
+handle_call('rebuild', _From, Trie) ->
+    {Pid, _} = PidRef = start_builder(),
+    {'reply', {'ok', Pid}, {Trie, PidRef}};
 handle_call(_Req, _From, State) ->
     {'noreply', State}.
 
 -spec handle_cast(any(), state()) -> {'noreply', state()}.
-handle_cast({'trie', Pid, Trie}, {_, Pid}) ->
-    lager:debug("trie built by ~p", [Pid]),
-    {'noreply', {Trie, Pid}};
+handle_cast({'trie', Pid, Trie}, {_, {Pid, Ref}}) ->
+    lager:debug("trie with ~p prefixes built by ~p", [trie:size(Trie), Pid]),
+    erlang:demonitor(Ref, ['flush']),
+    {'noreply', Trie};
 handle_cast(_Req, State) ->
     lager:info("unhandled cast ~p", [_Req]),
     {'noreply', State}.
 
 -spec handle_info(any(), state()) -> {'noreply', state()}.
-handle_info({'build_timeout', Pid}, {_, Pid}=State) ->
-    lager:error("building trie took too long, killing pid ~p",[Pid]),
+handle_info({'build_timeout', PidRef}, {'undefined', {Pid, Ref}=PidRef}) ->
+    lager:error("building the initial trie took too long, killing pid ~p", [Pid]),
+    erlang:demonitor(Ref, ['flush']),
     erlang:exit(Pid, 'build_timeout'),
-    {'noreply', State};
-handle_info({'build_timeout', _Pid}, State) ->
+
+    {NewPid, _} = NewPidRef = start_builder(),
+    lager:debug("starting new builder at ~p", [NewPid]),
+
+    {'noreply', {'undefined', NewPidRef}};
+handle_info({'build_timeout', PidRef}, {Trie, {Pid, Ref}=PidRef}) ->
+    lager:error("building the new trie took too long, killing pid ~p", [Pid]),
+    erlang:demonitor(Ref, ['flush']),
+    erlang:exit(Pid, 'build_timeout'),
+    {'noreply', Trie};
+handle_info({'build_timeout', _PidRef}, Trie) ->
     %% It's ok, build completed already
-    {'noreply', State};
-handle_info({'DOWN', _Ref, 'process', Pid, _Reason}, {Trie, Pid}) ->
-    lager:debug("~p:~p down: ~p", [Pid, _Ref, _Reason]),
-    {'noreply', {Trie, 'undefined'}};
+    {'noreply', Trie};
+handle_info({'DOWN', Ref, 'process', Pid, _Reason}, {Trie, {Pid, Ref}}) ->
+    lager:debug("~p:~p down: ~p", [Pid, Ref, _Reason]),
+    {'noreply', Trie};
+handle_info({'DOWN', _Ref, 'process', _Pid, _Reason}, Trie) ->
+    {'norply', Trie};
 handle_info(Msg, State) ->
     lager:info("unhandled message ~p",[Msg]),
     {'noreply', State}.
@@ -192,3 +210,10 @@ fetch_rates(Database, StartKey) ->
                                      ]
                                     ),
     kz_datamgr:get_results(Database, <<"rates/lookup">>, Options).
+
+-spec match_did(string(), trie:trie()) -> match_return().
+match_did(DID, Trie) ->
+    case trie:find_prefix_longest(DID, Trie) of
+        'error' -> {'error', 'not_found'};
+        {'ok', Prefix, RateIds} -> {'ok', {Prefix, RateIds}}
+    end.
