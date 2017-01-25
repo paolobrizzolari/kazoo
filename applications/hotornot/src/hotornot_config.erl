@@ -20,39 +20,38 @@
 
 -include("hotornot.hrl").
 
--define(DEFAULT_MINIMUM, kapps_config:get_integer(?APP_NAME, <<"default_rate_minimum">>, 60)).
--define(DEFAULT_INCREMENT, kapps_config:get_integer(?APP_NAME, <<"default_rate_increment">>, 60)).
--define(DEFAULT_NOCHARGE, kapps_config:get_integer(?APP_NAME, <<"default_rate_nocharge_time">>, 0)).
--define(DEFAULT_SURCHARGE, kapps_config:get_float(?APP_NAME, <<"default_rate_surcharge">>, 0.0)).
--define(DEFAULT_COST, kapps_config:get_float(?APP_NAME, <<"default_rate_cost">>, 0.0)).
--define(DEFAULT_INT_COST, kapps_config:get_float(?APP_NAME, <<"default_rate_internal_cost">>, 0.0)).
-
--define(DEFAULT_FILTER_LIST, [<<"direction">>
-                             ,<<"route_options">>
-                             ,<<"routes">>
-                             ]).
-
 -spec default_minimum() -> pos_integer().
-default_minimum() -> ?DEFAULT_MINIMUM.
+default_minimum() ->
+    kapps_config:get_integer(?APP_NAME, <<"default_rate_minimum">>, ?SECONDS_IN_MINUTE).
 
 -spec default_increment() -> pos_integer().
-default_increment() -> ?DEFAULT_INCREMENT.
+default_increment() ->
+    kapps_config:get_integer(?APP_NAME, <<"default_rate_increment">>, ?SECONDS_IN_MINUTE).
 
 -spec default_nocharge() -> non_neg_integer().
-default_nocharge() -> ?DEFAULT_NOCHARGE.
+default_nocharge() ->
+    kapps_config:get_integer(?APP_NAME, <<"default_rate_nocharge_time">>, 0).
 
 -spec default_surcharge() -> float().
-default_surcharge() -> ?DEFAULT_SURCHARGE.
+default_surcharge() ->
+    kapps_config:get_float(?APP_NAME, <<"default_rate_surcharge">>, 0.0).
 
 -spec default_cost() -> float().
-default_cost() -> ?DEFAULT_COST.
+default_cost() ->
+    kapps_config:get_float(?APP_NAME, <<"default_rate_cost">>, 0.0).
 
 -spec default_internal_cost() -> float().
-default_internal_cost() -> ?DEFAULT_INT_COST.
+default_internal_cost() ->
+    kapps_config:get_float(?APP_NAME, <<"default_rate_internal_cost">>, 0.0).
 
 -spec default_filter_list() -> ne_binaries().
 -spec filter_list() -> ne_binaries().
-default_filter_list() -> ?DEFAULT_FILTER_LIST.
+default_filter_list() ->
+    [<<"direction">>
+    ,<<"route_options">>
+    ,<<"routes">>
+    ].
+
 filter_list() ->
     kapps_config:get(?APP_NAME, <<"filter_list">>, default_filter_list()).
 
