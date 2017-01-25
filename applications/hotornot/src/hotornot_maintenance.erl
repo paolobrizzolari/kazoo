@@ -32,7 +32,7 @@ local_summary() ->
 -spec trie_rebuild() -> 'ok'.
 -spec wait_for_rebuild(pid(), reference()) -> 'ok'.
 trie_rebuild() ->
-    case hon_util:use_trie() of
+    case hotornot_config:use_trie() of
         'true' ->
             {'ok', Pid} = hon_trie:rebuild(),
             wait_for_rebuild(Pid, erlang:monitor('process', Pid));

@@ -66,7 +66,7 @@ init([]) ->
 
 -spec maybe_start_trie(list()) -> list().
 maybe_start_trie(Children) ->
-    case hon_util:use_trie() of
+    case hotornot_config:use_trie() of
         'false' -> Children;
         'true' -> [?WORKER('hon_trie') | Children]
     end.

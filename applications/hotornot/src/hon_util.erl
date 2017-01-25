@@ -11,8 +11,6 @@
 -export([candidate_rates/1
         ,matching_rates/2
         ,sort_rates/1
-
-        ,use_trie/0
         ]).
 
 -ifdef(TEST).
@@ -23,10 +21,6 @@
 
 -define(MIN_PREFIX_LEN, 1). % how many chars to strip off the e164 DID
 -define(BOTH_DIRECTIONS, [<<"inbound">>, <<"outbound">>]).
-
--spec use_trie() -> boolean().
-use_trie() ->
-    kapps_config:get_is_true(?APP_NAME, <<"use_trie">>, 'false').
 
 -spec candidate_rates(ne_binary()) ->
                              {'ok', kz_json:objects()} |
@@ -40,7 +34,7 @@ candidate_rates(ToDID) ->
                                   {'error', atom()}.
 find_candidate_rates(E164)
   when byte_size(E164) > ?MIN_PREFIX_LEN ->
-    case use_trie() of
+    case hotornot_config:use_trie() of
         'false' -> fetch_candidate_rates(E164);
         'true' -> find_trie_rates(E164)
     end;
@@ -60,21 +54,27 @@ find_trie_rates(E164) ->
     end.
 
 -spec fetch_candidate_rates(ne_binary()) ->
-                                   {'ok', kz_json:objects()} |
-                                   {'error', atom()}.
+                                   {'ok', kzd_rate:docs()} |
+                                   {'error', 'did_too_short'} |
+                                   kz_datamgr:data_error().
+-spec fetch_candidate_rates(ne_binary(), ne_binaries()) ->
+                                   {'ok', kzd_rate:docs()} |
+                                   {'error', 'did_too_short'} |
+                                   kz_datamgr:data_error().
 fetch_candidate_rates(E164) ->
-    Keys = build_keys(E164),
+    fetch_candidate_rates(E164, build_keys(E164)).
 
+fetch_candidate_rates(_E164, []) ->
+    {'error', 'did_too_short'};
+fetch_candidate_rates(E164, Keys) ->
     lager:debug("searching for prefixes for ~s: ~p", [E164, Keys]),
-    case Keys =/= []
-        andalso kz_datamgr:get_results(?KZ_RATES_DB
-                                      ,<<"rates/lookup">>
-                                      ,[{'keys', Keys}
-                                       ,'include_docs'
-                                       ]
-                                      )
+    case kz_datamgr:get_results(?KZ_RATES_DB
+                               ,<<"rates/lookup">>
+                               ,[{'keys', Keys}
+                                ,'include_docs'
+                                ]
+                               )
     of
-        'false' -> {'error', 'did_too_short'};
         {'ok', []}=OK -> OK;
         {'error', _}=E -> E;
         {'ok', ViewRows} ->
@@ -107,20 +107,20 @@ build_keys(<<D:1/binary, Rest/binary>>, Prefix, Acc) ->
     build_keys(Rest, <<Prefix/binary, D/binary>>, [kz_term:to_integer(<<Prefix/binary, D/binary>>) | Acc]);
 build_keys(<<>>, _, Acc) -> Acc.
 
--spec matching_rates(kz_json:objects(), kz_json:object()) ->
-                            kz_json:objects().
-matching_rates(Rates, ReqJObj) ->
-    FilterList = kapps_config:get(?APP_NAME, <<"filter_list">>, ?DEFAULT_FILTER_LIST),
+-spec matching_rates(kzd_rate:docs(), kapi_rate:req()) ->
+                            kzd_rate:docs().
+matching_rates(Rates, RateReq) ->
+    FilterList = hotornot_config:filter_list(),
     lists:foldl(fun(Filter, Acc) ->
-                        lists:filter(fun(R) -> matching_rate(R, Filter, ReqJObj) end, Acc)
+                        lists:filter(fun(Rate) -> matching_rate(Rate, Filter, RateReq) end, Acc)
                 end
                ,Rates
                ,FilterList
                ).
 
--spec sort_rates(kz_json:objects()) -> kz_json:objects().
+-spec sort_rates(kzd_rate:docs()) -> kzd_rate:docs().
 sort_rates(Rates) ->
-    case kapps_config:get_is_true(?APP_NAME, <<"sort_by_weight">>, 'true') of
+    case hotornot_config:should_sort_by_weight() of
         'true' -> lists:usort(fun sort_rate_by_weight/2, Rates);
         'false' -> lists:usort(fun sort_rate_by_cost/2, Rates)
     end.

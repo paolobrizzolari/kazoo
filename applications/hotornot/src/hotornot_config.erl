@@ -7,6 +7,10 @@
         ,default_cost/0
         ,default_internal_cost/0
         ,default_filter_list/0
+
+        ,filter_list/0
+        ,should_sort_by_weight/0
+        ,use_trie/0
         ]).
 
 -include("hotornot.hrl").
@@ -42,4 +46,15 @@ default_cost() -> ?DEFAULT_COST.
 default_internal_cost() -> ?DEFAULT_INT_COST.
 
 -spec default_filter_list() -> ne_binaries().
+-spec filter_list() -> ne_binaries().
 default_filter_list() -> ?DEFAULT_FILTER_LIST.
+filter_list() ->
+    kapps_config:get(?APP_NAME, <<"filter_list">>, default_filter_list()).
+
+-spec should_sort_by_weight() -> boolean().
+should_sort_by_weight() ->
+    kapps_config:get_is_true(?APP_NAME, <<"sort_by_weight">>, 'true').
+
+-spec use_trie() -> boolean().
+use_trie() ->
+    kapps_config:get_is_true(?APP_NAME, <<"use_trie">>, 'false').

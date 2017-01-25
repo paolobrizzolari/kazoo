@@ -47,7 +47,7 @@
 %%--------------------------------------------------------------------
 -spec start_link() -> startlink_ret().
 start_link() ->
-    case hon_util:use_trie() of
+    case hotornot_config:use_trie() of
         'false' ->
             Bindings = ?BINDINGS,
             Responders = ?RESPONDERS;

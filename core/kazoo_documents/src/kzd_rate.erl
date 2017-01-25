@@ -25,7 +25,8 @@
 -include("kz_documents.hrl").
 
 -type doc() :: kz_json:object().
--export_type([doc/0]).
+-type docs() :: [doc()].
+-export_type([doc/0, docs/0]).
 
 -spec minimum(doc()) -> integer().
 -spec minimum(doc(), integer()) -> integer().
