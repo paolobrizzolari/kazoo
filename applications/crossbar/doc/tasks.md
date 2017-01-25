@@ -19,8 +19,8 @@ Key | Description | Type | Default | Required
 Ensure the endpoint and backend are started:
 
 ```shell
-sup crossbar_maintenance start_module cb_tasks
 sup kapps_controller start_app tasks
+sup crossbar_maintenance start_module cb_tasks
 ```
 
 #### List available tasks
