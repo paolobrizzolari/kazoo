@@ -9403,7 +9403,7 @@
                     "type": "array"
                 },
                 "rate_version": {
-                    "description": "If defined, use rates with this varsion",
+                    "description": "If defined, use rates with this version",
                     "type": "string"
                 },
                 "sort_by_weight": {
