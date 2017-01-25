@@ -82,7 +82,7 @@ action(<<"export">>) ->
     ];
 
 action(<<"import">>) ->
-    %% prefix & cost is mandatory fields
+    %% prefix & cost are mandatory fields
     {Mandatory, Optional} = lists:split(2, [?DOC_FIELDS]),
     [{<<"description">>, <<"Bulk-import rates">>}
     ,{<<"doc">>, <<"Creates rates from file">>}
@@ -113,13 +113,14 @@ direction(_) -> 'false'.
 -spec export(kz_proplist(), task_iterator()) -> task_iterator().
 export(Props, 'init') ->
     case is_allowed(Props) of
-        'true' -> State = [{'db', get_ratedeck_db(Props)}
-                          ,{'options', [{'limit', ?BULK_LIMIT + 1}
-                                       ,'include_docs'
-                                       ]
-                           }
-                          ],
-                  export(Props, State);
+        'true' ->
+            State = [{'db', get_ratedeck_db(Props)}
+                    ,{'options', [{'limit', ?BULK_LIMIT + 1}
+                                 ,'include_docs'
+                                 ]
+                     }
+                    ],
+            export(Props, State);
         'false' ->
             lager:warning("rates exporting is forbidden for account ~s, auth account ~s"
                          ,[props:get_value('account_id', Props)
@@ -135,13 +136,14 @@ export(_Props, State) ->
     Limit = props:get_value(['options', 'limit'], State),
     case kz_datamgr:get_results(Db, ?RATES_VIEW, Options) of
         {'ok', []} -> 'stop';
-        {'ok', Results} when erlang:length(Results) >= Limit ->
+        {'ok', Results} when length(Results) >= Limit ->
             {Head, Last} = split_results(Results),
             Rows = [to_csv_row(R) || R <- Head],
-            NewOptions = [{'startkey', kz_json:get_value(<<"key">>, Last)}
-                         ,{'startkey_docid', kz_json:get_value(<<"id">>, Last)}
-                          | props:delete_keys(['startkey', 'startkey_docid'], Options)
-                         ],
+            NewOptions = props:set_values([{'startkey', kz_json:get_value(<<"key">>, Last)}
+                                          ,{'startkey_docid', kz_json:get_value(<<"id">>, Last)}
+                                          ]
+                                         ,Options
+                                         ),
             NewState = props:set_value('options', NewOptions, State),
             {Rows, NewState};
         {'ok', Results} ->
@@ -259,7 +261,7 @@ cleanup(<<"delete">>, State) ->
 
 -spec split_results(kz_json:objects()) -> {kz_json:objects(), kz_json:object()}.
 split_results([_|_] = JObjs) ->
-    {Head, [Last]} = lists:split(erlang:length(JObjs)-1, JObjs),
+    {Head, [Last]} = lists:split(length(JObjs)-1, JObjs),
     %% !!!
     %% workaround untill https://github.com/benoitc/couchbeam/pull/160
     %% !!!
@@ -299,8 +301,8 @@ generate_row([?VARS], Props) ->
              ,{<<"routes">>, [<<"^\\+?", Prefix/binary, ".+$">>]}
               %% override account-ID from task props
              ,{<<"account_id">>, props:get_value('account_id', Props)}
-             ,{<<"pvt_auth_account_id">>, props:get_value('auth_account_id', Props)}
-             ],
+                                ,{<<"pvt_auth_account_id">>, props:get_value('auth_account_id', Props)}
+                                ],
     kz_json:from_list(props:filter_undefined(props:set_values(Update, List))).
 
 -spec save_rates(ne_binary(), kz_json:objects()) -> 'ok'.
