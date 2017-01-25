@@ -18,12 +18,15 @@
 -include("hotornot.hrl").
 
 -define(LOCAL_SUMMARY_ROW_FORMAT,
-        " ~45.s | ~9.p | ~9.p | ~9.p | ~9.p | ~9.p | ~15.s | ~15.s | ~15.s |~n").
+        " ~45.s | ~6.s | ~9.s | ~9.s | ~9.s | ~9.s | ~15.s | ~15.s | ~15.s |~n").
 -define(LOCAL_SUMMARY_HEADER,
-        io:format(?LOCAL_SUMMARY_ROW_FORMAT, [<<"RATE NAME">>, <<"COST">>, <<"INCREMENT">>, <<"MINIMUM">>
-                                             ,<<"SURCHARGE">>, <<"WEIGHT">>, <<"PREFIX">>, <<"RATEDECK NAME">>
-                                             ,<<"VERSION">>
-                                             ])).
+        io:format(?LOCAL_SUMMARY_ROW_FORMAT
+                 ,[<<"RATE NAME">>, <<"COST">>, <<"INCREMENT">>, <<"MINIMUM">>
+                  ,<<"SURCHARGE">>, <<"WEIGHT">>, <<"PREFIX">>, <<"RATEDECK NAME">>
+                  ,<<"VERSION">>
+                  ]
+                 )
+       ).
 
 -spec local_summary() -> 'ok'.
 local_summary() ->
@@ -112,15 +115,15 @@ rates_between(Pre, Post) ->
 -spec print_rate(kzd_rate:doc()) -> 'ok'.
 print_rate(Rate) ->
     io:format(?LOCAL_SUMMARY_ROW_FORMAT
-             ,[kzd_rate:name(Rate)
-              ,kzd_rate:rate_cost(Rate)
-              ,kzd_rate:increment(Rate)
-              ,kzd_rate:minimum(Rate)
-              ,kzd_rate:surcharge(Rate)
-              ,kzd_rate:weight(Rate)
-              ,kzd_rate:prefix(Rate)
-              ,kzd_rate:ratedeck(Rate)
-              ,kzd_rate:version(Rate)
+             ,[kz_util:to_binary(kzd_rate:name(Rate))
+              ,kz_util:to_binary(kzd_rate:rate_cost(Rate))
+              ,kz_util:to_binary(kzd_rate:increment(Rate))
+              ,kz_util:to_binary(kzd_rate:minimum(Rate))
+              ,kz_util:to_binary(kzd_rate:surcharge(Rate))
+              ,kz_util:to_binary(kzd_rate:weight(Rate))
+              ,kz_util:to_binary(kzd_rate:prefix(Rate))
+              ,kz_util:to_binary(kzd_rate:ratedeck(Rate, <<>>))
+              ,kz_util:to_binary(kzd_rate:version(Rate, <<>>))
               ]).
 
 -spec get_rate_version() -> api_binary().
