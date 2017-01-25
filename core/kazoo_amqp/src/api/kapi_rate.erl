@@ -16,6 +16,13 @@
         ,broadcast_resp/1, broadcast_resp/2
         ]).
 
+-type req()  :: kz_json:object().
+-type resp() :: kz_json:object().
+
+-export_type([req/0
+             ,resp/0
+             ]).
+
 -include_lib("amqp_util.hrl").
 
 -define(EVENT_CATEGORY, <<"rate">>).
