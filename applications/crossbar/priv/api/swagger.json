@@ -6182,7 +6182,7 @@
             "properties": {
                 "account_id": {
                     "description": "Reseller's account ID",
-                    "requred": false,
+                    "required": false,
                     "type": "string"
                 },
                 "carrier": {
