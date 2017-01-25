@@ -20,8 +20,6 @@ sup crossbar_maintenance start_module cb_tasks
 sup kapps_controller start_app tasks
 ```
 
-
-
 #### List available tasks
 
 > GET /v2/tasks
