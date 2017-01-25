@@ -6,7 +6,6 @@
         ,default_surcharge/0
         ,default_cost/0
         ,default_internal_cost/0
-        ,default_filter_list/0
 
         ,filter_list/0
         ,should_sort_by_weight/0
@@ -44,16 +43,12 @@ default_cost() ->
 default_internal_cost() ->
     kapps_config:get_float(?APP_NAME, <<"default_rate_internal_cost">>, 0.0).
 
--spec default_filter_list() -> ne_binaries().
 -spec filter_list() -> ne_binaries().
-default_filter_list() ->
-    [<<"direction">>
-    ,<<"route_options">>
-    ,<<"routes">>
-    ].
-
 filter_list() ->
-    kapps_config:get(?APP_NAME, <<"filter_list">>, default_filter_list()).
+    kapps_config:get(?APP_NAME, <<"filter_list">>, [<<"direction">>
+                                                   ,<<"route_options">>
+                                                   ,<<"routes">>
+                                                   ]).
 
 -spec should_sort_by_weight() -> boolean().
 should_sort_by_weight() ->
