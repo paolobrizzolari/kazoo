@@ -10,7 +10,12 @@
 
         ,filter_list/0
         ,should_sort_by_weight/0
+        ,rate_version/0, set_rate_version/1
+
+        ,should_account_filter_by_resource/1
+
         ,use_trie/0
+        ,trie_build_timeout_ms/0
         ]).
 
 -include("hotornot.hrl").
@@ -58,3 +63,20 @@ should_sort_by_weight() ->
 -spec use_trie() -> boolean().
 use_trie() ->
     kapps_config:get_is_true(?APP_NAME, <<"use_trie">>, 'false').
+
+-spec trie_build_timeout_ms() -> pos_integer().
+trie_build_timeout_ms() ->
+    kapps_config:get_integer(?APP_NAME, <<"trie_build_timeout_ms">>, ?MILLISECONDS_IN_MINUTE).
+
+-spec rate_version() -> api_ne_binary().
+rate_version() ->
+    kapps_config:get_ne_binary(?APP_NAME, <<"rate_version">>).
+
+-spec set_rate_version(ne_binary()) -> 'ok'.
+set_rate_version(Version) ->
+    kapps_config:set_string(?APP_NAME, <<"rate_version">>, Version),
+    'ok'.
+
+-spec should_account_filter_by_resource(ne_binary()) -> boolean().
+should_account_filter_by_resource(AccountId) ->
+    kapps_account_config:get_from_reseller(AccountId, ?APP_NAME, <<"filter_by_resource_id">>, 'false').

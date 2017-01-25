@@ -35,7 +35,7 @@ start_link() ->
 %% @doc
 %% Add processes if necessary.
 %% @end
--spec upgrade() -> ok.
+-spec upgrade() -> 'ok'.
 upgrade() ->
     {'ok', {_, Specs}} = init([]),
 

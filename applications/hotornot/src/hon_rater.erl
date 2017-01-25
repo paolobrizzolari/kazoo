@@ -24,7 +24,7 @@ handle_req(RateReq, _Props) ->
         {'error', 'no_rate_found'} ->
             maybe_publish_no_rate_found(RateReq);
         {'ok', Resp} ->
-            kapi_rate:publish_resp(kz_json:get_value(<<"Server-ID">>, RateReq)
+            kapi_rate:publish_resp(kz_api:server_id(RateReq)
                                   ,props:filter_undefined(Resp)
                                   ),
             kapi_rate:broadcast_resp(props:filter_undefined(Resp))
@@ -39,8 +39,8 @@ maybe_publish_no_rate_found(RateReq) ->
 
 -spec publish_no_rate_found(kapi_rate:req()) -> 'ok'.
 publish_no_rate_found(RateReq) ->
-    MsgId = kz_json:get_value(<<"Msg-ID">>, RateReq),
-    ServerId = kz_json:get_value(<<"Server-ID">>, RateReq),
+    MsgId = kz_api:msg_id(RateReq),
+    ServerId = kz_api:server_id(RateReq),
 
     Resp = [{<<"Msg-ID">>, MsgId}
             | kz_api:default_headers(?APP_NAME, ?APP_VERSION)

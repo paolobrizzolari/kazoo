@@ -20,7 +20,6 @@
 -include("hotornot.hrl").
 
 -define(MIN_PREFIX_LEN, 1). % how many chars to strip off the e164 DID
--define(BOTH_DIRECTIONS, [<<"inbound">>, <<"outbound">>]).
 
 -spec candidate_rates(ne_binary()) ->
                              {'ok', kz_json:objects()} |
@@ -127,73 +126,67 @@ sort_rates(Rates) ->
 
 %% Private helper functions
 
--spec matching_rate(kz_json:object(), ne_binary(), kz_json:object()) -> boolean().
-matching_rate(Rate, <<"direction">>, JObj) ->
-    case kz_json:get_value(<<"Direction">>, JObj) of
+-spec matching_rate(kzd_rate:doc(), ne_binary(), kapi_rate:req()) -> boolean().
+matching_rate(Rate, <<"direction">>, RateReq) ->
+    case kz_json:get_value(<<"Direction">>, RateReq) of
         'undefined' -> 'true';
         Direction ->
-            lists:member(Direction
-                        ,lists:flatten([kz_json:get_value(<<"direction">>, Rate, ?BOTH_DIRECTIONS)])
-                        )
+            lists:member(Direction, kzd_rate:direction(Rate))
     end;
 
-matching_rate(Rate, <<"route_options">>, JObj) ->
-    RouteOptions = kz_json:get_value(<<"Options">>, JObj, []),
-    RouteFlags   = kz_json:get_value(<<"Outbound-Flags">>, JObj, []),
-    ResourceFlag = case kz_json:get_value(<<"Account-ID">>, JObj) of
+matching_rate(Rate, <<"route_options">>, RateReq) ->
+    RouteOptions = kz_json:get_value(<<"Options">>, RateReq, []),
+    RouteFlags   = kz_json:get_value(<<"Outbound-Flags">>, RateReq, []),
+    ResourceFlag = case kz_json:get_value(<<"Account-ID">>, RateReq) of
                        'undefined' -> [];
-                       AccountId -> maybe_add_resource_flag(JObj, AccountId)
+                       AccountId -> maybe_add_resource_flag(RateReq, AccountId)
                    end,
-    options_match(kz_json:get_value(<<"options">>, Rate, []), RouteOptions++RouteFlags++ResourceFlag);
+    options_match(kzd_rate:options(Rate), RouteOptions++RouteFlags++ResourceFlag);
 
-matching_rate(Rate, <<"routes">>, JObj) ->
-    E164 = knm_converters:normalize(kz_json:get_value(<<"To-DID">>, JObj)),
+matching_rate(Rate, <<"routes">>, RateReq) ->
+    E164 = knm_converters:normalize(kz_json:get_value(<<"To-DID">>, RateReq)),
     lists:any(fun(Regex) -> re:run(E164, Regex) =/= 'nomatch' end
-             ,kz_json:get_value([<<"routes">>], Rate, [])
+             ,kzd_rate:routes(Rate, [])
              );
 
-matching_rate(Rate, <<"ratedeck_name">>, JObj) ->
-    AccountId = kz_json:get_value(<<"Account-ID">>, JObj),
+matching_rate(Rate, <<"ratedeck_name">>, RateReq) ->
+    AccountId = kz_json:get_value(<<"Account-ID">>, RateReq),
     AccountRatedeck = kz_service_ratedeck_name:get_ratedeck_name(AccountId),
-    RatedeckName = kz_json:get_value(<<"ratedeck_name">>, Rate),
+    RatedeckName = kzd_rate:ratedeck(Rate),
     AccountRatedeck =:= RatedeckName;
 
-matching_rate(Rate, <<"reseller">>, JObj) ->
-    AccountId = kz_json:get_value(<<"Account-ID">>, JObj),
+matching_rate(Rate, <<"reseller">>, RateReq) ->
+    AccountId = kz_json:get_value(<<"Account-ID">>, RateReq),
     ResellerId = kz_services:find_reseller_id(AccountId),
-    RateAccountId = kz_json:get_value(<<"account_id">>, Rate),
+    RateAccountId = kzd_rate:account_id(Rate),
     RateAccountId =:= ResellerId;
 
-matching_rate(Rate, <<"version">>, _JObj) ->
-    RateVersion = kz_json:get_binary_value(<<"rate_version">>, Rate),
-    ConfigVersion = kapps_config:get_binary(?APP_NAME, <<"rate_version">>),
-    RateVersion =:= ConfigVersion;
+matching_rate(Rate, <<"version">>, _RateReq) ->
+    kzd_rate:version(Rate) =:= hotornot_config:rate_version();
 
-matching_rate(_Rate, _FilterType, _ReqJObj) -> 'false'.
+matching_rate(_Rate, _FilterType, _RateReq) -> 'false'.
 
 %% Return true if RateA has lower weight than RateB
--spec sort_rate_by_weight(kz_json:object(), kz_json:object()) -> boolean().
+-spec sort_rate_by_weight(kzd_rate:doc(), kzd_rate:doc()) -> boolean().
 sort_rate_by_weight(RateA, RateB) ->
-    PrefixA = byte_size(kz_json:get_binary_value(<<"prefix">>, RateA)),
-    PrefixB = byte_size(kz_json:get_binary_value(<<"prefix">>, RateB)),
+    PrefixA = byte_size(kzd_rate:prefix(RateA)),
+    PrefixB = byte_size(kzd_rate:prefix(RateB)),
 
     case PrefixA =:= PrefixB of
         'true' ->
-            kz_json:get_integer_value(<<"weight">>, RateA, 100) <
-                kz_json:get_integer_value(<<"weight">>, RateB, 100);
+            kzd_rate:weight(RateA, 100) < kzd_rate:weight(RateB, 100);
         'false' ->
             PrefixA > PrefixB
     end.
 
--spec sort_rate_by_cost(kz_json:object(), kz_json:object()) -> boolean().
+-spec sort_rate_by_cost(kzd_rate:doc(), kzd_rate:doc()) -> boolean().
 sort_rate_by_cost(RateA, RateB) ->
-    PrefixA = byte_size(kz_json:get_binary_value(<<"prefix">>, RateA)),
-    PrefixB = byte_size(kz_json:get_binary_value(<<"prefix">>, RateB)),
+    PrefixA = byte_size(kzd_rate:prefix(RateA)),
+    PrefixB = byte_size(kzd_rate:prefix(RateB)),
 
     case PrefixA =:= PrefixB of
         'true' ->
-            kz_json:get_float_value(<<"rate_cost">>, RateA, 0) >
-                kz_json:get_float_value(<<"rate_cost">>, RateB, 0);
+            kzd_rate:rate_cost(RateA, 0.0) > kzd_rate:rate_cost(RateB, 0.0);
         'false' ->
             PrefixA > PrefixB
     end.
@@ -212,11 +205,11 @@ options_match(RateOptions, RouteOptions) ->
              ,RouteOptions
              ).
 
--spec maybe_add_resource_flag(kz_json:object(), ne_binary()) -> kz_proplist().
-maybe_add_resource_flag(JObj, AccountId) ->
-    case kapps_account_config:get_from_reseller(AccountId, ?APP_NAME, <<"filter_by_resource_id">>, 'false') of
+-spec maybe_add_resource_flag(kapi_rate:req(), ne_binary()) -> kz_proplist().
+maybe_add_resource_flag(RateReq, AccountId) ->
+    case hotornot_config:should_account_filter_by_resource(AccountId) of
         'true' ->
-            case kz_json:get_value(<<"Resource-ID">>, JObj) of
+            case kz_json:get_ne_binary_value(<<"Resource-ID">>, RateReq) of
                 'undefined' -> [];
                 ResourceId -> [ResourceId]
             end;

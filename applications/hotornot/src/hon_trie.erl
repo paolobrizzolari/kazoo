@@ -36,8 +36,6 @@
 
 -include("hotornot.hrl").
 
--define(BUILD_TIMEOUT, kapps_config:get_integer(?APP_NAME, <<"trie_build_timeout_ms">>, ?MILLISECONDS_IN_MINUTE)).
-
 -type state() :: trie:trie() | {trie:trie() | 'undefined', pid_ref()}.
 
 -spec start_link() -> {'ok', pid()}.
@@ -71,11 +69,11 @@ rebuild() ->
             {'error', E}
     end.
 
--spec load_rates(ne_binaries()) -> {'ok', kz_json:objects()}.
+-spec load_rates(ne_binaries()) -> {'ok', kzd_rate:docs()}.
 load_rates(RateIds) ->
     {'ok', lists:foldl(fun load_rate/2, [], RateIds)}.
 
--spec load_rate(ne_binary(), kz_json:objects()) -> kz_json:objects().
+-spec load_rate(ne_binary(), kz_json:objects()) -> kzd_rate:docs().
 load_rate(RateId, Acc) ->
     case kz_datamgr:open_cache_doc(?KZ_RATES_DB, RateId) of
         {'ok', RateDoc} -> [RateDoc | Acc];
@@ -91,7 +89,7 @@ init([]) ->
 -spec start_builder() -> pid_ref().
 start_builder() ->
     PidRef = spawn_monitor(?MODULE, 'build_trie', [self()]),
-    _ = erlang:send_after(?BUILD_TIMEOUT, self(), {'build_timeout', PidRef}),
+    _ = erlang:send_after(hotornot_config:trie_build_timeout_ms(), self(), {'build_timeout', PidRef}),
     PidRef.
 
 -spec handle_call(any(), pid_ref(), state()) ->
@@ -158,8 +156,8 @@ code_change(_Vsn, State, _Extra) ->
     {'ok', State}.
 
 -spec handle_db_update(kz_json:object(), kz_proplist()) -> 'ok'.
-handle_db_update(JObj, _Props) ->
-    'true' = kapi_conf:doc_update_v(JObj),
+handle_db_update(ConfUpdate, _Props) ->
+    'true' = kapi_conf:doc_update_v(ConfUpdate),
     {'ok', Pid} = gen_server:call(?MODULE, 'rebuild'),
     lager:debug("ratedeck DB changed, rebuilding trie in ~p", [Pid]).
 

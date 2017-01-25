@@ -18,7 +18,7 @@
 -include("hotornot.hrl").
 
 -define(LOCAL_SUMMARY_ROW_FORMAT,
-        " ~45.s | ~9.s | ~9.s | ~9.s | ~9.s | ~9.s | ~15.s | ~15.s | ~15.s |~n").
+        " ~45.s | ~9.p | ~9.p | ~9.p | ~9.p | ~9.p | ~15.s | ~15.s | ~15.s |~n").
 -define(LOCAL_SUMMARY_HEADER,
         io:format(?LOCAL_SUMMARY_ROW_FORMAT, [<<"RATE NAME">>, <<"COST">>, <<"INCREMENT">>, <<"MINIMUM">>
                                              ,<<"SURCHARGE">>, <<"WEIGHT">>, <<"PREFIX">>, <<"RATEDECK NAME">>
@@ -41,14 +41,15 @@ trie_rebuild() ->
     end.
 
 wait_for_rebuild(Pid, Ref) ->
+    Timeout = hotornot_config:trie_build_timeout_ms() + 500,
     receive
         {'DOWN', Ref, 'process', Pid, 'normal'} ->
             io:format("trie has been rebuilt successfully~n");
         {'DOWN', Ref, 'process', Pid, _Reason} ->
             io:format("trie failed to be rebuilt in ~p: ~p~n", [Pid, _Reason])
     after
-        10000 ->
-            io:format("trie failed to build in ~p under 10s~n", [Pid])
+        Timeout ->
+            io:format("trie failed to build in ~p under ~p ms~n", [Pid, Timeout])
     end.
 
 -spec rates_for_did(ne_binary()) -> 'ok'.
@@ -70,7 +71,7 @@ rates_for_did(DID, Direction, AccountId, RouteOptions) when is_list(RouteOptions
                           ,{<<"Options">>, RouteOptions}
                           ,{<<"To-DID">>, DID}
                           ])),
-            io:format("Candidates:~n", []),
+            io:format("Candidates:~n"),
             ?LOCAL_SUMMARY_HEADER,
             lists:foreach(fun print_rate/1, Rates),
             print_matching(hon_util:matching_rates(Rates, ReqJObj))
@@ -78,18 +79,18 @@ rates_for_did(DID, Direction, AccountId, RouteOptions) when is_list(RouteOptions
 rates_for_did(DID, Direction, AccountId, Opt) ->
     rates_for_did(DID, Direction, AccountId, [Opt]).
 
--spec print_matching(kz_json:objects()) -> 'ok'.
+-spec print_matching(kzd_rate:docs()) -> 'ok'.
 print_matching([]) ->
-    io:format("no rates matched~n", []);
+    io:format("no rates matched~n");
 print_matching(Matching) ->
-    io:format("Matching:~n", []),
+    io:format("Matching:~n"),
     ?LOCAL_SUMMARY_HEADER,
 
     [Winning|Sorted] = hon_util:sort_rates(Matching),
-    Name = kz_json:get_value(<<"rate_name">>, Winning),
+    Name = kzd_rate:name(Winning),
 
     lists:foreach(fun print_rate/1
-                 ,[kz_json:set_value(<<"rate_name">>, <<"* ", Name/binary>>, Winning)
+                 ,[kzd_rate:set_name(Winning, <<"* ", Name/binary>>)
                    | Sorted
                   ]).
 
@@ -102,30 +103,29 @@ rates_between(Pre, Post) ->
         {'ok', []} -> io:format("rate lookup had no results~n");
         {'error', _E} -> io:format("rate lookup error: ~p~n", [_E]);
         {'ok', Rates} ->
-            io:format("Rates between:~n", []),
+            io:format("Rates between:~n"),
             ?LOCAL_SUMMARY_HEADER,
             _ = [print_rate(kz_json:get_value(<<"value">>, R)) || R <- Rates],
             'ok'
     end.
 
--spec print_rate(kz_json:object()) -> 'ok'.
-print_rate(JObj) ->
-    io:format(?LOCAL_SUMMARY_ROW_FORMAT, [kz_json:get_binary_value(<<"rate_name">>, JObj)
-                                         ,kz_json:get_binary_value(<<"rate_cost">>, JObj)
-                                         ,kz_json:get_binary_value(<<"rate_increment">>, JObj)
-                                         ,kz_json:get_binary_value(<<"rate_minimum">>, JObj)
-                                         ,kz_json:get_binary_value(<<"rate_surcharge">>, JObj, <<"0.0">>)
-                                         ,kz_json:get_binary_value(<<"weight">>, JObj)
-                                         ,kz_json:get_binary_value(<<"prefix">>, JObj)
-                                         ,kz_json:get_binary_value(<<"ratedeck_name">>, JObj)
-                                         ,kz_json:get_binary_value(<<"rate_version">>, JObj)
-                                         ]).
+-spec print_rate(kzd_rate:doc()) -> 'ok'.
+print_rate(Rate) ->
+    io:format(?LOCAL_SUMMARY_ROW_FORMAT
+             ,[kzd_rate:name(Rate)
+              ,kzd_rate:rate_cost(Rate)
+              ,kzd_rate:increment(Rate)
+              ,kzd_rate:minimum(Rate)
+              ,kzd_rate:surcharge(Rate)
+              ,kzd_rate:weight(Rate)
+              ,kzd_rate:prefix(Rate)
+              ,kzd_rate:ratedeck(Rate)
+              ,kzd_rate:version(Rate)
+              ]).
 
 -spec get_rate_version() -> api_binary().
-get_rate_version() ->
-    kapps_config:get_binary(?APP_NAME, <<"rate_version">>).
+get_rate_version() -> hotornot_config:rate_version().
 
 -spec set_rate_version(ne_binary()) -> 'ok'.
 set_rate_version(Version) ->
-    kapps_config:set(?APP_NAME, <<"rate_version">>, Version),
-    'ok'.
+    hotornot_config:set_rate_version(Version).
