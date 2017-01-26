@@ -19956,6 +19956,38 @@
                 ]
             }
         },
+        "/accounts/{ACCOUNT_ID}/tasks/{TASK_ID}/input": {
+            "get": {
+                "parameters": [
+                    {
+                        "$ref": "#/parameters/task_id"
+                    },
+                    {
+                        "$ref": "#/parameters/auth_token_header",
+                        "required": true
+                    },
+                    {
+                        "$ref": "#/parameters/account_id"
+                    }
+                ]
+            }
+        },
+        "/accounts/{ACCOUNT_ID}/tasks/{TASK_ID}/output": {
+            "get": {
+                "parameters": [
+                    {
+                        "$ref": "#/parameters/task_id"
+                    },
+                    {
+                        "$ref": "#/parameters/auth_token_header",
+                        "required": true
+                    },
+                    {
+                        "$ref": "#/parameters/account_id"
+                    }
+                ]
+            }
+        },
         "/accounts/{ACCOUNT_ID}/temporal_rules": {
             "get": {
                 "parameters": [
