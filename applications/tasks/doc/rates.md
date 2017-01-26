@@ -93,6 +93,8 @@ curl -v -X PUT \
 }
 ```
 
+Don't forget to then `PATCH` the task to start it!
+
 #### Save the CSV
 
 Once the task has completed, save the CSV locally:
@@ -102,7 +104,7 @@ curl -v -X GET \
 -o export.csv
 -H "Accept: text/csv"
 -H "X-Auth-Token: $AUTH_TOKEN"
-'http://{SERVER}:8000/v2/tasks/{TASK_ID}'
+'http://{SERVER}:8000/v2/tasks/{TASK_ID}?csv_name=out.csv'
 ```
 
 ### Delete
