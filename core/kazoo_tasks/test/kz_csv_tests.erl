@@ -106,7 +106,7 @@ add_split_row_assertions({Row, Split}, Tests) ->
     [{binary_to_list(Row), ?_assertEqual(Split, Fields)} | Tests].
 
 files_test_() ->
-    filelib:fold_files("test/", "\.csv$", 'false', fun gen_file_tests/2, []).
+    filelib:fold_files("test/", "\\.csv\$", 'false', fun gen_file_tests/2, []).
 
 gen_file_tests(File, Tests) ->
     {'ok', CSV} = file:read_file(File),
