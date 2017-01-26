@@ -6,7 +6,11 @@
             "map": [
                 "function(doc) {",
                 "  if (doc.pvt_type != 'task' || doc.pvt_deleted) return;",
-                "  var csvs = undefined; ('_attachments' in doc) ? csvs = Object.keys(doc['_attachments']) : csvs = undefined;",
+                "  var csvs;",
+                "  if ('_attachments' in doc) {",
+                "    csvs = []; ",
+                "    for (var k in doc['_attachments']) { csvs.push(k); } ",
+                "  } ",
                 "  emit([doc.pvt_account_id, doc._id], {",
                 "    'id': doc._id,",
                 "    'account_id': doc.pvt_account_id,",
