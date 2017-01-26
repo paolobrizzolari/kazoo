@@ -178,11 +178,12 @@ content_types_provided(Context, _TaskId, _CSV) ->
 
 -spec ctp(cb_context:context()) -> cb_context:context().
 ctp(Context) ->
-    cb_context:add_content_types_provided(Context, [{'to_csv', ?CSV_CONTENT_TYPES}
-                                                   ,{'to_json', ?JSON_CONTENT_TYPES}
+    cb_context:add_content_types_provided(Context, [{'to_json', ?JSON_CONTENT_TYPES}
+                                                   ,{'to_csv', ?CSV_CONTENT_TYPES}
                                                    ]).
 
--spec to_csv({cowboy_req:req(), cb_context:context()}) -> {cowboy_req:req(), cb_context:context()}.
+-spec to_csv({cowboy_req:req(), cb_context:context()}) ->
+                    {cowboy_req:req(), cb_context:context()}.
 to_csv({Req, Context}) ->
     Filename = requested_attachment_name(Context),
     Headers = props:set_values([{<<"content-type">>, <<"application/octet-stream">>}
@@ -411,13 +412,12 @@ accept_value(Context) ->
                 ,cb_context:req_value(Context, <<"accept">>)
                 ).
 
--spec accept_value(api_ne_binary(), api_ne_binary()) -> api_ne_binary().
+-spec accept_value(api_ne_binary(), api_ne_binary()) -> ne_binary().
+accept_value('undefined', 'undefined') -> ?DEFAULT_CONTENT_TYPE;
 accept_value(Header, 'undefined') -> Header;
 accept_value(_Header, <<"csv">>) -> <<"text/csv">>;
 accept_value(_Header, Tunneled) -> Tunneled.
 
-read(TaskId, Context, AccountId, 'undefined') ->
-    read(TaskId, Context, AccountId, cb_context:req_value(Context, <<"accept">>, ?DEFAULT_CONTENT_TYPE));
 read(TaskId, Context, AccountId, Accept) ->
     lager:debug("accept value: ~p", [Accept]),
     read_doc_or_attachment(TaskId, Context, AccountId, cb_modules_util:parse_media_type(Accept)).
