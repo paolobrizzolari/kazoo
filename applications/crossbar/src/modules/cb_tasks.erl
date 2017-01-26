@@ -169,11 +169,9 @@ ctp(Context) ->
 
 -spec to_csv({cowboy_req:req(), cb_context:context()}) -> {cowboy_req:req(), cb_context:context()}.
 to_csv({Req, Context}) ->
-    Nouns = cb_context:req_nouns(Context),
-    [TaskId] = props:get_value(<<"tasks">>, Nouns),
-
+    Filename = requested_attachment_name(Context),
     Headers = props:set_values([{<<"content-type">>, <<"application/octet-stream">>}
-                               ,{<<"content-disposition">>, <<"attachment; filename=\"", TaskId/binary, "\"">>}
+                               ,{<<"content-disposition">>, <<"attachment; filename=\"", Filename/binary, "\"">>}
                                ]
                               ,cowboy_req:get('resp_headers', Req)
                               ),
@@ -435,14 +433,24 @@ read_attachment(TaskId, Context, AccountId) ->
     case cb_context:resp_status(ReadContext) of
         'success' ->
             lager:debug("reading attachment for ~s", [TaskId]),
-            read_attachment_file(TaskId, Context, kz_datamgr:open_cache_doc(?KZ_TASKS_DB, TaskId));
+            read_attachment_file(TaskId
+                                ,Context
+                                ,requested_attachment_name(Context)
+                                );
         _Status ->
             lager:debug("reading ~s failed: ~p", [_Status]),
             ReadContext
     end.
 
-read_attachment_file(TaskId, Context, {'ok', TaskJObj}) ->
-    [AttachmentName|_] = kz_json:get_keys(kz_doc:attachment(TaskJObj)),
+-spec requested_attachment_name(cb_context:context()) -> ne_binary().
+requested_attachment_name(Context) ->
+    cb_context:req_value(Context
+                        ,<<"csv_name">>
+                        ,?KZ_TASKS_ATTACHMENT_NAME_OUT
+                        ).
+
+-spec read_attachment_file(ne_binary(), cb_context:context(), ne_binary()) -> cb_context:context().
+read_attachment_file(TaskId, Context, AttachmentName) ->
     crossbar_doc:load_attachment(TaskId, AttachmentName, [], Context).
 
 %%--------------------------------------------------------------------
