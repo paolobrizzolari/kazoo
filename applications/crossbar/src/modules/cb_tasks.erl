@@ -11,11 +11,11 @@
 -export([init/0
         ,authenticate/1
         ,authorize/1
-        ,allowed_methods/0, allowed_methods/1
-        ,resource_exists/0, resource_exists/1
+        ,allowed_methods/0, allowed_methods/1, allowed_methods/2
+        ,resource_exists/0, resource_exists/1, resource_exists/2
         ,content_types_accepted/1, content_types_accepted/2
-        ,content_types_provided/1, content_types_provided/2
-        ,validate/1, validate/2
+        ,content_types_provided/1, content_types_provided/2, content_types_provided/3
+        ,validate/1, validate/2, validate/3
         ,put/1
         ,patch/2
         ,delete/2
@@ -32,6 +32,9 @@
 -define(QS_ACTION, <<"action">>).
 -define(RD_RECORDS, <<"records">>).
 -define(RV_FILENAME, <<"file_name">>).
+
+-define(PATH_OUTPUT, <<"output">>).
+-define(PATH_INPUT, <<"input">>).
 
 %%%===================================================================
 %%% API
@@ -103,10 +106,15 @@ authorize(Context) ->
 %%--------------------------------------------------------------------
 -spec allowed_methods() -> http_methods().
 -spec allowed_methods(path_token()) -> http_methods().
+-spec allowed_methods(path_token(), path_token()) -> http_methods().
 allowed_methods() ->
     [?HTTP_GET, ?HTTP_PUT].
 allowed_methods(_TaskId) ->
     [?HTTP_GET, ?HTTP_PATCH, ?HTTP_DELETE].
+allowed_methods(_TaskId, ?PATH_INPUT) ->
+    [?HTTP_GET];
+allowed_methods(_TaskId, ?PATH_OUTPUT) ->
+    [?HTTP_GET].
 
 %%--------------------------------------------------------------------
 %% @public
@@ -118,8 +126,11 @@ allowed_methods(_TaskId) ->
 %%--------------------------------------------------------------------
 -spec resource_exists() -> 'true'.
 -spec resource_exists(path_token()) -> 'true'.
+-spec resource_exists(path_token(), path_token()) -> 'true'.
 resource_exists() -> 'true'.
 resource_exists(_TaskId) -> 'true'.
+resource_exists(_TaskId, ?PATH_INPUT) -> 'true';
+resource_exists(_TaskId, ?PATH_OUTPUT) -> 'true'.
 
 %%--------------------------------------------------------------------
 %% @public
@@ -156,10 +167,14 @@ cta(Context, _) ->
                                     cb_context:context().
 -spec content_types_provided(cb_context:context(), path_token()) ->
                                     cb_context:context().
+-spec content_types_provided(cb_context:context(), path_token(), path_token()) ->
+                                    cb_context:context().
 content_types_provided(Context) ->
     ctp(Context).
 content_types_provided(Context, _TaskId) ->
     ctp(Context).
+content_types_provided(Context, _TaskId, _CSV) ->
+    cb_context:add_content_types_provided(Context, [{'to_csv', ?CSV_CONTENT_TYPES}]).
 
 -spec ctp(cb_context:context()) -> cb_context:context().
 ctp(Context) ->
@@ -190,10 +205,23 @@ to_csv({Req, Context}) ->
 %%--------------------------------------------------------------------
 -spec validate(cb_context:context()) -> cb_context:context().
 -spec validate(cb_context:context(), path_token()) -> cb_context:context().
+-spec validate(cb_context:context(), path_token(), path_token()) -> cb_context:context().
 validate(Context) ->
     validate_tasks(Context, cb_context:req_verb(Context)).
 validate(Context, PathToken) ->
     validate_tasks(Context, PathToken, cb_context:req_verb(Context)).
+validate(Context, TaskId, CSV) ->
+    CSVFile = csv_path_to_file(CSV),
+    QS = cb_context:query_string(Context),
+    AdjustedQS = kz_json:set_values([{<<"csv_name">>, CSVFile}
+                                    ,{<<"accept">>, <<"text/csv">>}
+                                    ]
+                                   ,QS
+                                   ),
+    AdjustedContext = cb_context:set_query_string(Context
+                                                 ,AdjustedQS
+                                                 ),
+    validate(AdjustedContext, TaskId).
 
 -spec validate_tasks(cb_context:context(), http_method()) -> cb_context:context().
 validate_tasks(Context, ?HTTP_GET) ->
@@ -374,7 +402,19 @@ read(TaskId, Context, 'undefined') ->
     AuthAccountId = cb_context:auth_account_id(Context),
     read(TaskId, Context, AuthAccountId);
 read(TaskId, Context, AccountId) ->
-    read(TaskId, Context, AccountId, cb_context:req_header(Context, <<"accept">>)).
+    AcceptValue = accept_value(Context),
+    read(TaskId, Context, AccountId, AcceptValue).
+
+-spec accept_value(cb_context:context()) -> api_ne_binary().
+accept_value(Context) ->
+    accept_value(cb_context:req_header(Context, <<"accept">>)
+                ,cb_context:req_value(Context, <<"accept">>)
+                ).
+
+-spec accept_value(api_ne_binary(), api_ne_binary()) -> api_ne_binary().
+accept_value(Header, 'undefined') -> Header;
+accept_value(_Header, <<"csv">>) -> <<"text/csv">>;
+accept_value(_Header, Tunneled) -> Tunneled.
 
 read(TaskId, Context, AccountId, 'undefined') ->
     read(TaskId, Context, AccountId, cb_context:req_value(Context, <<"accept">>, ?DEFAULT_CONTENT_TYPE));
@@ -449,9 +489,16 @@ requested_attachment_name(Context) ->
                         ,?KZ_TASKS_ATTACHMENT_NAME_OUT
                         ).
 
+-spec csv_path_to_file(ne_binary()) -> ne_binary().
+csv_path_to_file(?PATH_INPUT) ->
+    ?KZ_TASKS_ATTACHMENT_NAME_IN;
+csv_path_to_file(?PATH_OUTPUT) ->
+    ?KZ_TASKS_ATTACHMENT_NAME_OUT.
+
 -spec read_attachment_file(ne_binary(), cb_context:context(), ne_binary()) -> cb_context:context().
 read_attachment_file(TaskId, Context, AttachmentName) ->
-    crossbar_doc:load_attachment(TaskId, AttachmentName, [], Context).
+    Type = ?TYPE_CHECK_OPTION(kzd_task:type()),
+    crossbar_doc:load_attachment(TaskId, AttachmentName, Type, Context).
 
 %%--------------------------------------------------------------------
 %% @private
