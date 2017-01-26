@@ -11,14 +11,16 @@
 -export([init/0
         ,authenticate/1
         ,authorize/1
-        ,allowed_methods/0, allowed_methods/1, allowed_methods/2
-        ,resource_exists/0, resource_exists/1, resource_exists/2
+        ,allowed_methods/0, allowed_methods/1
+        ,resource_exists/0, resource_exists/1
         ,content_types_accepted/1, content_types_accepted/2
-        ,content_types_provided/3
-        ,validate/1, validate/2, validate/3
+        ,content_types_provided/1, content_types_provided/2
+        ,validate/1, validate/2
         ,put/1
         ,patch/2
         ,delete/2
+
+        ,to_csv/1
         ]).
 
 -include("crossbar.hrl").
@@ -30,10 +32,6 @@
 -define(QS_ACTION, <<"action">>).
 -define(RD_RECORDS, <<"records">>).
 -define(RV_FILENAME, <<"file_name">>).
-
--define(CSV_OUT, <<"output">>).
--define(CSV_IN, <<"input">>).
-
 
 %%%===================================================================
 %%% API
@@ -57,6 +55,7 @@ init() ->
     _ = crossbar_bindings:bind(<<"*.execute.put.tasks">>, ?MODULE, 'put'),
     _ = crossbar_bindings:bind(<<"*.execute.patch.tasks">>, ?MODULE, 'patch'),
     _ = crossbar_bindings:bind(<<"*.execute.delete.tasks">>, ?MODULE, 'delete'),
+    _ = crossbar_bindings:bind(<<"*.to_csv.get.tasks">>, ?MODULE, 'to_csv'),
     'ok'.
 
 %%--------------------------------------------------------------------
@@ -72,6 +71,8 @@ authenticate(Context) ->
          ,cb_context:req_nouns(Context)
          } of
         {?HTTP_GET, [{<<"tasks">>, []}]} -> 'true';
+        {?HTTP_PUT, [{<<"tasks">>, []}]} ->
+            cb_context:is_superduper_admin(Context);
         _ -> 'false'
     end.
 
@@ -88,6 +89,8 @@ authorize(Context) ->
          ,cb_context:req_nouns(Context)
          } of
         {?HTTP_GET, [{<<"tasks">>, []}]} -> 'true';
+        {?HTTP_PUT, [{<<"tasks">>, []}]} ->
+            cb_context:is_superduper_admin(Context);
         _ -> 'false'
     end.
 
@@ -100,15 +103,10 @@ authorize(Context) ->
 %%--------------------------------------------------------------------
 -spec allowed_methods() -> http_methods().
 -spec allowed_methods(path_token()) -> http_methods().
--spec allowed_methods(path_token(), path_token()) -> http_methods().
 allowed_methods() ->
     [?HTTP_GET, ?HTTP_PUT].
 allowed_methods(_TaskId) ->
     [?HTTP_GET, ?HTTP_PATCH, ?HTTP_DELETE].
-allowed_methods(_TaskId, ?CSV_OUT) ->
-    [?HTTP_GET];
-allowed_methods(_TaskId, ?CSV_IN) ->
-    [?HTTP_GET].
 
 %%--------------------------------------------------------------------
 %% @public
@@ -120,11 +118,8 @@ allowed_methods(_TaskId, ?CSV_IN) ->
 %%--------------------------------------------------------------------
 -spec resource_exists() -> 'true'.
 -spec resource_exists(path_token()) -> 'true'.
--spec resource_exists(path_token(), path_token()) -> 'true'.
 resource_exists() -> 'true'.
 resource_exists(_TaskId) -> 'true'.
-resource_exists(_TaskId, ?CSV_OUT) -> 'true';
-resource_exists(_TaskId, ?CSV_IN) -> 'true'.
 
 %%--------------------------------------------------------------------
 %% @public
@@ -157,19 +152,33 @@ cta(Context, _) ->
 %% Of the form {atom(), [{Type, SubType}]} :: {to_json, [{<<"application">>, <<"json">>}]}
 %% @end
 %%--------------------------------------------------------------------
--spec content_types_provided(cb_context:context(), path_token(), path_token()) -> cb_context:context().
-content_types_provided(Context, _TaskId, ?CSV_OUT) ->
-    case cb_context:req_verb(Context) of
-        ?HTTP_GET ->
-            cb_context:add_content_types_provided(Context, [{'to_binary', ?CSV_CONTENT_TYPES}]);
-        _ -> Context
-    end;
-content_types_provided(Context, _TaskId, ?CSV_IN) ->
-    case cb_context:req_verb(Context) of
-        ?HTTP_GET ->
-            cb_context:add_content_types_provided(Context, [{'to_binary', ?CSV_CONTENT_TYPES}]);
-        _ -> Context
-    end.
+-spec content_types_provided(cb_context:context()) ->
+                                    cb_context:context().
+-spec content_types_provided(cb_context:context(), path_token()) ->
+                                    cb_context:context().
+content_types_provided(Context) ->
+    ctp(Context).
+content_types_provided(Context, _TaskId) ->
+    ctp(Context).
+
+-spec ctp(cb_context:context()) -> cb_context:context().
+ctp(Context) ->
+    cb_context:add_content_types_provided(Context, [{'to_csv', ?CSV_CONTENT_TYPES}
+                                                   ,{'to_json', ?JSON_CONTENT_TYPES}
+                                                   ]).
+
+-spec to_csv({cowboy_req:req(), cb_context:context()}) -> {cowboy_req:req(), cb_context:context()}.
+to_csv({Req, Context}) ->
+    Nouns = cb_context:req_nouns(Context),
+    [TaskId] = props:get_value(<<"tasks">>, Nouns),
+
+    Headers = props:set_values([{<<"content-type">>, <<"application/octet-stream">>}
+                               ,{<<"content-disposition">>, <<"attachment; filename=\"", TaskId/binary, "\"">>}
+                               ]
+                              ,cowboy_req:get('resp_headers', Req)
+                              ),
+    {'ok', Req1} = cowboy_req:reply(200, Headers, cb_context:resp_data(Context), Req),
+    {Req1, Context}.
 
 %%--------------------------------------------------------------------
 %% @public
@@ -183,13 +192,10 @@ content_types_provided(Context, _TaskId, ?CSV_IN) ->
 %%--------------------------------------------------------------------
 -spec validate(cb_context:context()) -> cb_context:context().
 -spec validate(cb_context:context(), path_token()) -> cb_context:context().
--spec validate(cb_context:context(), path_token(), path_token()) -> cb_context:context().
 validate(Context) ->
     validate_tasks(Context, cb_context:req_verb(Context)).
 validate(Context, PathToken) ->
     validate_tasks(Context, PathToken, cb_context:req_verb(Context)).
-validate(Context, PathToken1, PathToken2) ->
-    validate_tasks(Context, PathToken1, PathToken2, cb_context:req_verb(Context)).
 
 -spec validate_tasks(cb_context:context(), http_method()) -> cb_context:context().
 validate_tasks(Context, ?HTTP_GET) ->
@@ -216,13 +222,6 @@ validate_tasks(Context, TaskId, ?HTTP_PATCH) ->
     read(TaskId, Context);
 validate_tasks(Context, TaskId, ?HTTP_DELETE) ->
     read(TaskId, Context).
-
--spec validate_tasks(cb_context:context(), path_token(), path_token(), http_method()) ->
-                            cb_context:context().
-validate_tasks(Context, TaskId, ?CSV_OUT, ?HTTP_GET) ->
-    maybe_load_csv_attachment(Context, TaskId, ?KZ_TASKS_ANAME_OUT);
-validate_tasks(Context, TaskId, ?CSV_IN, ?HTTP_GET) ->
-    maybe_load_csv_attachment(Context, TaskId, ?KZ_TASKS_ANAME_IN).
 
 -spec validate_new_attachment(cb_context:context(), boolean()) -> cb_context:context().
 validate_new_attachment(Context, 'true') ->
@@ -367,19 +366,84 @@ set_db(Context) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec read(ne_binary(), cb_context:context()) -> cb_context:context().
+-spec read(ne_binary(), cb_context:context(), api_binary()) -> cb_context:context().
+-spec read(ne_binary(), cb_context:context(), api_binary(), api_binary()) -> cb_context:context().
 read(TaskId, Context) ->
     AccountId = cb_context:account_id(Context),
+    read(TaskId, set_db(Context), AccountId).
+
+read(TaskId, Context, 'undefined') ->
+    AuthAccountId = cb_context:auth_account_id(Context),
+    read(TaskId, Context, AuthAccountId);
+read(TaskId, Context, AccountId) ->
+    read(TaskId, Context, AccountId, cb_context:req_header(Context, <<"accept">>)).
+
+read(TaskId, Context, AccountId, 'undefined') ->
+    read(TaskId, Context, AccountId, cb_context:req_value(Context, <<"accept">>, ?DEFAULT_CONTENT_TYPE));
+read(TaskId, Context, AccountId, Accept) ->
+    lager:debug("accept value: ~p", [Accept]),
+    read_doc_or_attachment(TaskId, Context, AccountId, cb_modules_util:parse_media_type(Accept)).
+
+-type parsed_accept_values() :: {'error', 'badarg'} | media_values().
+
+-spec read_doc_or_attachment(ne_binary(), cb_context:context(), ne_binary(), parsed_accept_values()) ->
+                                    cb_context:context().
+read_doc_or_attachment(TaskId, Context, AccountId, {'error', 'badarg'}) ->
+    lager:info("failed to parse the accept header"),
+    read_doc(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"application">>, <<"json">>, _, _, _)|_]) ->
+    read_doc(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"application">>, <<"x-json">>, _, _, _)|_]) ->
+    read_doc(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"*">>, <<"*">>, _, _, _)|_]) ->
+    read_doc(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"text">>, <<"csv">>, _, _, _)|_]) ->
+    read_attachment(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"text">>, <<"comma-separated-values">>, _, _, _)|_]) ->
+    read_attachment(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [?MEDIA_VALUE(<<"application">>, <<"octet-stream">>, _, _, _)|_]) ->
+    read_attachment(TaskId, Context, AccountId);
+read_doc_or_attachment(TaskId, Context, AccountId, [_Accept|Accepts]) ->
+    lager:debug("failed to handle accept value ~p", [_Accept]),
+    read_doc_or_attachment(TaskId, Context, AccountId, Accepts);
+read_doc_or_attachment(TaskId, Context, AccountId, []) ->
+    lager:info("failed to find valid accept value"),
+    read_doc(TaskId, Context, AccountId).
+
+-spec read_doc(ne_binary(), cb_context:context(), ne_binary()) ->
+                      cb_context:context().
+read_doc(TaskId, Context, AccountId) ->
     Ctx = crossbar_doc:load_view(?KZ_TASKS_BY_ACCOUNT
                                 ,[{'key', [AccountId, TaskId]}]
-                                ,set_db(Context)
+                                ,Context
                                 ,fun normalize_view_results/2
                                 ),
-    case cb_context:resp_data(Ctx) of
-        [] -> crossbar_util:response_bad_identifier(TaskId, Context);
+
+    handle_read_result(TaskId, Context, Ctx).
+
+handle_read_result(TaskId, OrigContext, ReadContext) ->
+    case cb_context:resp_data(ReadContext) of
+        [] -> crossbar_util:response_bad_identifier(TaskId, OrigContext);
         [TaskJObj] ->
+            lager:debug("task: ~p", [TaskJObj]),
             JObj = kz_json:set_value(<<"_read_only">>, TaskJObj, kz_json:new()),
-            cb_context:set_resp_data(Ctx, JObj)
+            cb_context:set_resp_data(ReadContext, JObj)
     end.
+
+read_attachment(TaskId, Context, AccountId) ->
+    ReadContext = read_doc(TaskId, Context, AccountId),
+    case cb_context:resp_status(ReadContext) of
+        'success' ->
+            lager:debug("reading attachment for ~s", [TaskId]),
+            read_attachment_file(TaskId, Context, kz_datamgr:open_cache_doc(?KZ_TASKS_DB, TaskId));
+        _Status ->
+            lager:debug("reading ~s failed: ~p", [_Status]),
+            ReadContext
+    end.
+
+read_attachment_file(TaskId, Context, {'ok', TaskJObj}) ->
+    [AttachmentName|_] = kz_json:get_keys(kz_doc:attachment(TaskJObj)),
+    crossbar_doc:load_attachment(TaskId, AttachmentName, [], Context).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -447,43 +511,6 @@ save_attached_data(Context, TaskId, Records, 'false') ->
     lager:debug("saving ~s attachment in task ~s", [?KZ_TASKS_ANAME_IN, TaskId]),
     Options = [{'content_type', <<"text/csv">>}],
     crossbar_doc:save_attachment(TaskId, ?KZ_TASKS_ANAME_IN, CSV, Context, Options).
-
-%% @private
--spec maybe_load_csv_attachment(cb_context:context(), kz_tasks:task_id(), ne_binary()) ->
-                                       cb_context:context().
-maybe_load_csv_attachment(Context, TaskId, AName) ->
-    Context1 = read(TaskId, Context),
-    case cb_context:resp_status(Context1) =:= 'success' of
-        'false' -> Context1;
-        'true' ->
-            lager:debug("trying to fetch attachment for task ~s", [TaskId]),
-            load_csv_attachment(Context1, TaskId, AName)
-    end.
-
-%% @private
--spec load_csv_attachment(cb_context:context(), kz_tasks:task_id(), ne_binary()) ->
-                                 cb_context:context().
-load_csv_attachment(Context, TaskId, AName) ->
-    RD = kz_json:get_value(<<"_read_only">>, cb_context:resp_data(Context)),
-    Filename =
-        <<(kz_json:get_value(?QS_CATEGORY, RD))/binary, "_",
-          (kz_json:get_value(?QS_ACTION, RD))/binary, "_",
-          TaskId/binary, ".csv"
-        >>,
-    Type = ?TYPE_CHECK_OPTION(kzd_task:type()),
-    Ctx = crossbar_doc:load_attachment(TaskId, AName, Type, set_db(Context)),
-    case cb_context:resp_status(Ctx) of
-        'success' ->
-            lager:debug("loaded csv ~s from task doc ~s", [AName, TaskId]),
-            Headers = [{<<"Content-Disposition">>, <<"attachment; filename=", Filename/binary>>}
-                      ,{<<"Content-Type">>, <<"text/csv">>}
-                      ,{<<"Content-Length">>, byte_size(cb_context:resp_data(Ctx))}
-                      ],
-            cb_context:add_resp_headers(Ctx, Headers);
-        _ ->
-            lager:debug("no such csv ~s in task doc ~s", [AName, TaskId]),
-            Ctx
-    end.
 
 %% @private
 -spec help(cb_context:context()) -> cb_context:context().

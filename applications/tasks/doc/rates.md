@@ -64,7 +64,46 @@ curl -v -X GET \
 ### Export
 
 Export all rates into CSV.
-No input file.
+
+#### Start the export
+
+```shell
+curl -v -X PUT \
+-H "X-Auth-Header: {AUTH_TOKEN}" \
+'http://{SERVER}:8000/v2/tasks/?category=rates&action=export'
+```
+
+```json
+{
+    "auth_token": "{AUTH_TOKEN}",
+    "data": {
+        "_read_only": {
+            "account_id": "{ACCOUNT_ID}",
+            "action": "export",
+            "auth_account_id": "{AUTH_ACCOUNT_ID}",
+            "category": "rates",
+            "created": 63652613701,
+            "id": "{TASK_ID}",
+            "status": "pending"
+        }
+    },
+    "request_id": "{REQUEST_ID}",
+    "revision": "undefined",
+    "status": "success"
+}
+```
+
+#### Save the CSV
+
+Once the task has completed, save the CSV locally:
+
+```shell
+curl -v -X GET \
+-o export.csv
+-H "Accept: text/csv"
+-H "X-Auth-Token: $AUTH_TOKEN"
+'http://{SERVER}:8000/v2/tasks/{TASK_ID}'
+```
 
 ### Delete
 
