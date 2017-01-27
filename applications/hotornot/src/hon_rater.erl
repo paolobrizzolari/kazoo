@@ -131,9 +131,9 @@ rate_resp(Rate, RateReq) ->
     lager:debug("base cost for a minute call: ~p", [BaseCost]),
     ShouldUpdateCalleeId = should_update_callee_id(RateReq),
 
-    [{<<"Rate">>, kz_util:to_binary(RateCost)}
+    [{<<"Rate">>, kz_term:to_binary(RateCost)}
     ,{<<"Rate-Increment">>, kzd_rate:increment(Rate, hotornot_config:default_increment())}
-    ,{<<"Rate-Minimum">>, kz_util:to_binary(RateMinimum)}
+    ,{<<"Rate-Minimum">>, kz_term:to_binary(RateMinimum)}
     ,{<<"Discount-Percentage">>, maybe_get_rate_discount(RateReq)}
     ,{<<"Surcharge">>, kz_term:to_binary(RateSurcharge)}
     ,{<<"Prefix">>, kzd_rate:prefix(Rate)}

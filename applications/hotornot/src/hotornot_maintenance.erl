@@ -115,15 +115,15 @@ rates_between(Pre, Post) ->
 -spec print_rate(kzd_rate:doc()) -> 'ok'.
 print_rate(Rate) ->
     io:format(?LOCAL_SUMMARY_ROW_FORMAT
-             ,[kz_util:to_binary(kzd_rate:name(Rate))
-              ,kz_util:to_binary(kzd_rate:rate_cost(Rate))
-              ,kz_util:to_binary(kzd_rate:increment(Rate))
-              ,kz_util:to_binary(kzd_rate:minimum(Rate))
-              ,kz_util:to_binary(kzd_rate:surcharge(Rate))
-              ,kz_util:to_binary(kzd_rate:weight(Rate))
-              ,kz_util:to_binary(kzd_rate:prefix(Rate))
-              ,kz_util:to_binary(kzd_rate:ratedeck(Rate, <<>>))
-              ,kz_util:to_binary(kzd_rate:version(Rate, <<>>))
+             ,[kz_term:to_binary(kzd_rate:name(Rate))
+              ,kz_term:to_binary(kzd_rate:rate_cost(Rate))
+              ,kz_term:to_binary(kzd_rate:increment(Rate))
+              ,kz_term:to_binary(kzd_rate:minimum(Rate))
+              ,kz_term:to_binary(kzd_rate:surcharge(Rate))
+              ,kz_term:to_binary(kzd_rate:weight(Rate))
+              ,kz_term:to_binary(kzd_rate:prefix(Rate))
+              ,kz_term:to_binary(kzd_rate:ratedeck(Rate, <<>>))
+              ,kz_term:to_binary(kzd_rate:version(Rate, <<>>))
               ]).
 
 -spec get_rate_version() -> api_binary().

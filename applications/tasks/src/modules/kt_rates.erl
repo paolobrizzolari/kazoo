@@ -212,7 +212,7 @@ delete(Props, 'init', ?VARS) ->
 delete(Props, State, ?VARS) ->
     Limit = props:get_value('limit', State),
     Count = props:get_value('count', State) + 1,
-    P = kz_util:to_integer(Prefix),
+    P = kz_term:to_integer(Prefix),
     Row = lists:zip([?DOC_FIELDS], [?VARS]),
     %% override account-ID from task props
     Update = [{<<"account_id">>, props:get_value('account_id', Props)}],
@@ -362,7 +362,7 @@ init_db(Db) ->
 
 -spec maybe_delete_rate(kz_json:object(), dict:dict()) -> kz_json:object() | 'false'.
 maybe_delete_rate(JObj, Dict) ->
-    Prefix = kz_util:to_integer(kz_json:get_value(<<"key">>, JObj)),
+    Prefix = kz_term:to_integer(kz_json:get_value(<<"key">>, JObj)),
     Doc = kz_json:get_value(<<"doc">>, JObj),
     ReqRates = dict:fetch(Prefix, Dict),
     %% Delete docs only if its match with all defined fields in CSV row
@@ -397,11 +397,11 @@ maybe_generate_name(Name, _Prefix, _ISO, _Direction) -> Name.
 
 -spec maybe_generate_weight(api_binary() | api_integer(), ne_binary(), ne_binary(), api_binary()) -> api_binary().
 maybe_generate_weight('undefined', Prefix, Cost, IntCost) ->
-    R = kz_util:to_float(maybe_default(IntCost, Cost)),
-    maybe_generate_weight(byte_size(kz_util:to_binary(Prefix)) * 10 - trunc(R * 100), Prefix, Cost, IntCost);
+    R = kz_term:to_float(maybe_default(IntCost, Cost)),
+    maybe_generate_weight(byte_size(kz_term:to_binary(Prefix)) * 10 - trunc(R * 100), Prefix, Cost, IntCost);
 maybe_generate_weight(Weight, _, _, _) ->
-    case kz_util:to_integer(Weight) of
+    case kz_term:to_integer(Weight) of
         X when X =< 0 -> <<"1">>;
         X when X >= 100 -> <<"100">>;
-        X -> kz_util:to_binary(X)
+        X -> kz_term:to_binary(X)
     end.
