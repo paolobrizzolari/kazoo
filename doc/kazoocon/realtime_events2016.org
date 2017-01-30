@@ -121,6 +121,7 @@ http://{CB_SERVER}:8000/v2/accounts/{ACCOUNT_ID}/webhooks
 #+CAPTION: https://www.pubnub.com/wp-content/uploads/2014/09/WebSockets-Diagram.png
 #+ATTR_LATEX: :height 0.8\textheight
 [[./images/WebSockets-Diagram.png]]
+
 #+END_CENTER
 ** Create a websocket connection
 :PROPERTIES:
