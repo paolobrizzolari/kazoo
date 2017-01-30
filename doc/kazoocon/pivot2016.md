@@ -4,7 +4,7 @@
 
 ## About Myself
 
-1.  About Myself     :B_column:BMCOL:
+1.  About Myself
 
     -   James Aimonetti
         -   `Eye-Moe-Net-Tea`
@@ -12,26 +12,26 @@
     -   Kazoo Architect and Community at 2600Hz
     -   mc\_ on freenode
 
-2.  Presenter     :BMCOL:
+2.  Presenter
 
     <div class="org-center">
     ![img](./images/presenter_h280.jpg)
     </div>
 
 
-## High-level     :B_block:
+## High-level
 
 -   Point a callflow at your server
 -   Process the call against your business logic
 -   Return Kazoo callflow JSON
 
 
-## Flow     :B_block:
+## Flow
 
 ![img](./images/pivot_flow.png)
 
 
-## Setting up Kazoo     :B_block:
+## Setting up Kazoo
 
 -   create a callflow
 -   set the pivot action as the child
@@ -57,13 +57,13 @@ http://crossbar:8000/v2/accounts/{ACCOUNT_ID}/callflows
 Pivot will attempt to reach your server for calls to that callflow.
 
 
-## The Request     :B_block:
+## The Request
 
 -   GET - query string parameters
 -   POST - x-www-form-urlencoded request body
 
 
-## Common Request Fields     :B_block:
+## Common Request Fields
 
 | Name             | Description       |
 |---------------- |----------------- |
@@ -73,10 +73,10 @@ Pivot will attempt to reach your server for calls to that callflow.
 | From             | SIP From user     |
 | Account-ID       | Kazoo Account ID  |
 | Caller-ID-Name   | CID Name          |
-| Caller-ID-Number | CID Number        |  |  |
+| Caller-ID-Number | CID Number        |
 
 
-## Other Request Fields     :B_block:
+## Other Request Fields
 
 | Name     | Description                           |
 |-------- |------------------------------------- |
@@ -85,7 +85,7 @@ Pivot will attempt to reach your server for calls to that callflow.
 | Language | Configured by the device/user/account |
 
 
-## Create a handler     :B_block:
+## Create a handler
 
 -   Create the script that Pivot will call
 -   Process and build the Kazoo callflow JSON
@@ -100,19 +100,19 @@ Example Time!
 </div>
 
 
-## Say something     :B_frame:
+## Say something
 
 -   Uses [FreeSWITCH `mod_flite`](https://freeswitch.org/confluence/display/FREESWITCH/mod_flite) by default
 -   Supports [iSpeech](http://www.ispeech.org/text.to.speech) and [VoiceFabric](https://voicefabric.ru/) as alternatives
 
 
-## Say Hi to the caller     :B_frame:
+## Say Hi to the caller
 
 
-## Play an MP3 to the caller     :B_frame:
+## Play an MP3 to the caller
 
 
-## Bridging the caller to a user     :B_frame:
+## Bridging the caller to a user
 
 Bridge to:
 
@@ -123,19 +123,19 @@ Bridge to:
 -   and more!
 
 
-## Bridging the caller to a carrier     :B_frame:
+## Bridging the caller to a carrier
 
 -   Toggle between local and global resources
 -   Statically define a number to dial out to
 -   See the [schema](https://github.com/2600hz/kazoo/blob/master/applications/crossbar/priv/couchdb/schemas/callflows.resources.json) for all the **data** options
 
 
-## Collecting DTMF     :B_frame:
+## Collecting DTMF
 
 First, collect the DTMF
 
 
-## Collecting DTMF     :B_frame:
+## Collecting DTMF
 
 A followup HTTP request will be sent to `http://pivot.your.company.com/collected.php`
 
@@ -144,10 +144,10 @@ A followup HTTP request will be sent to `http://pivot.your.company.com/collected
 -   Let's see how to process them.
 
 
-## Collecting DTMF     :B_frame:
+## Collecting DTMF
 
 
-## Sending Presence Updates     :B_frame:
+## Sending Presence Updates
 
 Send custom presence updates
 
@@ -156,9 +156,9 @@ Send custom presence updates
 -   `status` can be **idle**, **ringing**, or **busy**
 
 
-## Callflow actions     :B_frame:
+## Callflow actions
 
-1.  Bridging     :B_column:
+1.  Bridging
 
     -   Device
     -   User
@@ -168,7 +168,7 @@ Send custom presence updates
     -   Voicemail Box
     -   Fax Box
 
-2.  Caller ID     :B_column:
+2.  Caller ID
 
     -   Statically set Caller ID
     -   Dynamically set Caller ID
@@ -176,9 +176,9 @@ Send custom presence updates
     -   Routing via Whitelist or Regex of Caller IDs
 
 
-## Callflow actions (cont)     :B_frame:
+## Callflow actions (cont)
 
-1.  Features     :B_column:BMCOL:
+1.  Features
 
     -   Eavesdrop
     -   Group Pickup
@@ -186,7 +186,7 @@ Send custom presence updates
     -   Page Groups
     -   Hotdesk
 
-2.  Miscellaneous     :B_column:BMCOL:
+2.  Miscellaneous
 
     -   Toggle call forwarding
     -   Toggle Do Not Disturb
@@ -197,9 +197,9 @@ Send custom presence updates
     -   Custom Webhook
 
 
-## Brainstorm     :B_frame:
+## Brainstorm
 
-1.  Possible Integrations     :B_block:
+1.  Possible Integrations
 
     -   Calendars (Office365, Google, etc)
     -   Put received media (vm, fax) into services (storage, chat)
@@ -211,7 +211,7 @@ Send custom presence updates
     -   **Your Ideas?**
 
 
-## What's Next?     :B_frame:
+## What's Next?
 
 1.  In Progress
 
