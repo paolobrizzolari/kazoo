@@ -486,14 +486,14 @@ read_attachment(TaskId, Context, AccountId) ->
 requested_attachment_name(Context) ->
     cb_context:req_value(Context
                         ,<<"csv_name">>
-                        ,?KZ_TASKS_ATTACHMENT_NAME_OUT
+                        ,?KZ_TASKS_ANAME_OUT
                         ).
 
 -spec csv_path_to_file(ne_binary()) -> ne_binary().
 csv_path_to_file(?PATH_INPUT) ->
-    ?KZ_TASKS_ATTACHMENT_NAME_IN;
+    ?KZ_TASKS_ANAME_IN;
 csv_path_to_file(?PATH_OUTPUT) ->
-    ?KZ_TASKS_ATTACHMENT_NAME_OUT.
+    ?KZ_TASKS_ANAME_OUT.
 
 -spec read_attachment_file(ne_binary(), cb_context:context(), ne_binary()) -> cb_context:context().
 read_attachment_file(TaskId, Context, AttachmentName) ->
