@@ -117,10 +117,11 @@ http://{CB_SERVER}:8000/v2/accounts/{ACCOUNT_ID}/webhooks
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-#+BEGIN_EXPORT latex
-\centering
-\href{https://www.pubnub.com/wp-content/uploads/2014/09/WebSockets-Diagram.png}{\includegraphics[height=0.8\textheight]{images/WebSockets-Diagram.png}}
-#+END_EXPORT
+#+BEGIN_CENTER
+#+CAPTION: https://www.pubnub.com/wp-content/uploads/2014/09/WebSockets-Diagram.png
+#+ATTR_LATEX: :height 0.8\textheight
+[[./images/WebSockets-Diagram.png]]
+#+END_CENTER
 ** Create a websocket connection
 :PROPERTIES:
 :BEAMER_env: frame
